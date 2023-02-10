@@ -7,8 +7,8 @@ interface WorkshopR {
 }
 export type Workshop = Readonly<WorkshopR>
 
-enum Status {
-    NORMAL = "-",
+export enum Status {
+    NORMAL = "normal",
     WORKSHOP_LEADER = "wlead",
     ABSENT = "abs",
     FESTIVAL_MANAGEMENT = "mgmt"
@@ -18,14 +18,15 @@ interface SPupilR {
     surname: string;
     first_name: string;
     gender: "m" | "w" | "d";
+    klasse: string;
     sleeping: boolean;
     paid: boolean;
     gets_food: boolean;
     status: Status;
     /**
-     * will be undefined if status == Status.NORMAL
+     * will be undefined if status != Status.NORMAL
      */
-    wishes?: [Workshop, Workshop, Workshop];
+    wishes?: [number, number, number];
 }
 export type SPupil = Readonly<SPupilR>
 
@@ -37,7 +38,10 @@ interface SClassR {
 export type SClass = Readonly<SClassR>
 
 interface DPupilR extends Readonly<Omit<SPupil, "wishes">> {
-    workshop: Workshop;
+    /**
+     * will be undefined if status == Status.FESTIVAL_MANAGEMENT
+     */
+    workshop?: Workshop;
 }
 export type DPupil = Readonly<DPupilR>
 
