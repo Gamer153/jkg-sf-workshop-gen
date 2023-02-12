@@ -19,9 +19,13 @@
         "readFile": true,
         "removeFile": true,
         "writeFile": true,
+        "copyFile": true,
         "scope": ["$RESOURCE/*"]
       },
       "dialog": {
+        "all": true
+      },
+      "path": {
         "all": true
       }
     },
@@ -40,7 +44,7 @@
         "icons/icon.icns",
         "icons/icon.ico"
       ],
-      "identifier": "com.tauri.dev",
+      "identifier": "dev.gamer153.jkg_sf_workshop_gen",
       "longDescription": "",
       "macOS": {
         "entitlements": null,
@@ -49,7 +53,9 @@
         "providerShortName": null,
         "signingIdentity": null
       },
-      "resources": [],
+      "resources": [
+        "../resources/*"
+      ],
       "shortDescription": "",
       "targets": "all",
       "windows": {
@@ -69,8 +75,8 @@
         "fullscreen": false,
         "height": 600,
         "resizable": true,
-        "title": "jkg_sf_workshop_gen",
-        "width": 800
+        "title": "JKG Workshop-Listen-Generator, von A. Albert",
+        "width": 1000
       }
     ]
   }

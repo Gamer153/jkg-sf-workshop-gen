@@ -2,6 +2,7 @@ interface WorkshopR {
     id: number;
     name: string;
     leader: string;
+    leaderClass: string;
     duration: 90 | 120;
     maxMembers: number;
 }

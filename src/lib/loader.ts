@@ -1,40 +1,39 @@
 import { SClass, SPupil, Status, Workshop } from "./data";
+import Excel from "exceljs";
 
-export function readWorkshops(filename: string): { [id: number]: Workshop } {
-    // TODO: do this lol
-    return {
-        1: {
-            id: 1,
-            name: "Kevins Kochshow",
-            leader: "Kevin Bäcker",
-            duration: 90,
-            maxMembers: 2
-        },
-        2: {
-            id: 2,
-            name: "Mauzis mildes Mitmachtheater",
-            leader: "Maurizio Brückner",
-            duration: 120,
-            maxMembers: 3
-        },
-        3: {
-            id: 3,
-            name: "Antonios anderes Angebot",
-            leader: "Antonio Albert",
-            duration: 120,
-            maxMembers: 1
-        },
-        4: {
-            id: 4,
-            name: "Felix' feine Filmwerkstatt",
-            leader: "Felix Manthey",
-            duration: 120,
-            maxMembers: 2
+export function readWorkshops(sheet: Excel.Worksheet): [workshops: Map<number, Workshop>, warnings: string[], error: string | null] {
+    const workshops = new Map<number, Workshop>();
+    const warnings = [];
+    for (let i = 2; i <= sheet.rowCount; i++) {
+        const row = sheet.getRow(i);
+        const id = parseInt(row.getCell("A").text);
+        if (isNaN(id)) continue;
+        const wName = row.getCell("B").text;
+        if (wName.trim() == "") {
+            warnings.push(`Workshop mit ID ${id} (in Zeile ${i}) hat keinen Namen! Übersprungen.`)
+            continue;
         }
+        const wLeader = row.getCell("C").text;
+        if (wLeader.trim() == "") return [workshops, warnings, `Workshop \"${wName}\" (in Zeile ${i}) hat keine*n Leiter*in!`];
+        const wLClass = row.getCell("D").text;
+        if (wLClass.trim() == "") return [workshops, warnings, `Klasse des/der Leiter*in fehlt bei Workshop \"${wName}\" (in Zeile ${i})!`];
+        const wMaxMembers = parseInt(row.getCell("E").text);
+        if (isNaN(wMaxMembers) || wMaxMembers < 1) return [workshops, warnings, "Workshop \"${wName}\" (in Zeile ${i}) hat keine gültige maximale Teilnehmerzahl!"];
+        const wDuration = parseInt(row.getCell("F").text);
+        if (isNaN(wDuration) || (wDuration != 90 && wDuration != 120)) return [workshops, warnings, `Workshop \"${wName}\" (in Zeile ${i}) muss entweder 90 oder 120 min Dauer haben!`];
+        workshops.set(id, {
+            id,
+            name: wName,
+            leader: wLeader,
+            leaderClass: wLClass,
+            maxMembers: wMaxMembers,
+            duration: wDuration
+        });
     }
+    return [workshops, warnings, null];
 }
 
-export function readClasses(filename: string): SClass[] {
+export function readClasses(sheet: Excel.Worksheet): SClass[] {
     // TODO: this!
     return [
         {
