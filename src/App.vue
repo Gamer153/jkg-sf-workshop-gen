@@ -3,17 +3,19 @@
 import * as fs from "@tauri-apps/api/fs";
 import * as dialog from "@tauri-apps/api/dialog";
 import * as path from "@tauri-apps/api/path";
+import * as shell from "@tauri-apps/api/shell";
 import Excel from "exceljs";
 import { ref } from "vue";
 import { DClass, DPupil, DWorkshopMap, SPupil, Workshop } from "./lib/data";
 import { readWorkshops } from "./lib/loader";
-import { ElButton, ElCard, ElContainer, ElAlert, ElMain, ElMessage, ElSteps, ElStep, ElHeader, ElLoading, ElDialog,  } from "element-plus";
+import { ElButton, ElCard, ElContainer, ElAlert, ElMain, ElMessage, ElSteps, ElStep, ElHeader, ElLoading, ElDialog, ElFooter, ElIcon, ElLink,  } from "element-plus";
 
 const workshopData = ref<Map<number, Workshop> | undefined>(undefined);
 const classData = ref<DClass[] | undefined>(undefined);
 const step = ref(0);
 
-const showAnewWarningDialogVisible = ref(false);
+const showAnewWarningDialog = ref(false);
+const showMailDialog = ref(false);
 
 async function readWorkshopXLSX() {
   const path = await dialog.open({ title: "Workshopdaten-Excel-Datei auswählen", filters: [{ name: "Excel-Datei", extensions: ["xlsx"] }] });
@@ -23,6 +25,10 @@ async function readWorkshopXLSX() {
   const [ readWorkshopData, warnings, error ] = readWorkshops(sheet.worksheets[0]);
   if (error) {
     await dialog.message("Beim Einlesen ist ein Fehler aufgetreten:\n" + error, { title: "Fehler beim Einlesen", type: "error" });
+    return;
+  }
+  if (readWorkshopData.size == 0) {
+    await dialog.message("Es wurden keine Workshop-Daten in dieser Excel-Datei gefunden!", { title: "Keine Workshop-Daten", type: "error" });
     return;
   }
   if (warnings.length > 0) {
@@ -71,13 +77,13 @@ function saveDoc(what: string) {
 }
 
 function startAnew() {
-  if (showAnewWarningDialogVisible.value) {
+  if (showAnewWarningDialog.value) {
     workshopData.value = undefined;
     classData.value = undefined;
     step.value = 0;
-    showAnewWarningDialogVisible.value = false;
+    showAnewWarningDialog.value = false;
   }
-  else showAnewWarningDialogVisible.value = true;
+  else showAnewWarningDialog.value = true;
 }
 
 </script>
@@ -100,11 +106,11 @@ function startAnew() {
       <ElButton type="success" style="margin-top: 8px;" @click="() => saveDoc('')">Excel-Datei mit Listen für jeden Workshop<b>-Leiter</b></ElButton><br>
       <ElButton type="success" style="margin-top: 8px;" @click="() => saveDoc('')">Excel-Datei mit Listen für jede Klasse (bzw. Klassensprecher)</ElButton><br>
       <ElButton type="danger" style="margin-top: 32px;" @click="startAnew">Erneut beginnen</ElButton><br>
-      <ElDialog v-model="showAnewWarningDialogVisible">
+      <ElDialog v-model="showAnewWarningDialog">
         Willst du wirklich alle Daten zurücksetzen und von vorne beginnen?
         <template #footer>
           <ElButton type="danger" @click="startAnew">Ja</ElButton>
-          <ElButton type="success" @click="() => showAnewWarningDialogVisible = false">Nein</ElButton>
+          <ElButton type="success" @click="() => showAnewWarningDialog = false">Nein</ElButton>
         </template>
       </ElDialog>
     </ElCard>
@@ -154,11 +160,22 @@ function startAnew() {
         Infos zu den Workshopdaten:<br>
         <ul>
           <li>Anzahl Workshops: {{ workshopData?.size }}</li>
-          <li>Maximale Kapazität aller Workshops: {{ getWorkshopCapacity() }}</li>
+          <li>Maximale Kapazität aller Workshops: {{ getWorkshopCapacity() }} Schüler</li>
         </ul>
       </div>
     </ElCard>
   </ElContainer>
+  <ElFooter style="font-size: small;">
+    <ElCard style="width: fit-content; margin-left: -20px; margin-top: 16px;">
+      <img src="github-mark-white.svg" height="14" style="vertical-align: auto;"> Quellcode: <a href="#0" @click="() => shell.open('https://github.com/Gamer153/jkg_sf_workshop_gen')">GitHub-Repo von Gamer153</a><br>
+      Erstellt von Antonio Albert, 2023<br>
+      Fehler, Wünsche oder Probleme? <a href="#1" @click="() => showMailDialog = true">Kontaktiere mich</a>
+      <ElDialog v-model="showMailDialog">
+        Meine E-Mail-Adresse: <span style="font-family: 'Courier New', Courier, monospace; font-weight: bold; font-size: larger;">a.albert@gamer153.dev</span>
+      </ElDialog>
+    </ElCard>
+    <br>
+  </ElFooter>
 </template>
 
 <style scoped>
