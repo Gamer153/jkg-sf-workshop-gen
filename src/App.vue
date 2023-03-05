@@ -269,7 +269,7 @@ function isWContinueDisabled() {
   </ElContainer>
   <ElFooter style="font-size: small;">
     <ElCard style="width: fit-content; margin-left: -20px; margin-top: 16px;">
-      <img src="github-mark-white.svg" height="14" style="vertical-align: auto;"> Quellcode: <a href="#0" @click="() => shell.open('https://github.com/Gamer153/jkg_sf_workshop_gen')">GitHub-Repo von Gamer153</a><br>
+      <!-- <img src="github-mark-white.svg" height="14" style="vertical-align: auto;"> --> Quellcode: <a href="#0" @click="() => shell.open('https://github.com/Gamer153/jkg_sf_workshop_gen')">GitHub-Repo von Gamer153</a><br>
       Erstellt von Antonio Albert, 2023<br>
       Fehler, Wünsche oder Probleme? <a href="#1" @click="() => showMailDialog = true">Kontaktiere mich</a>
       <ElDialog v-model="showMailDialog">
