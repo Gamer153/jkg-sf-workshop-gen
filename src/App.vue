@@ -56,7 +56,6 @@ async function readWorkshopXLSX() {
   const colOpts = new Map<number, string>();
   worksheet.getRow(1).eachCell((cell) => colOpts.set(cell.col as unknown as number, (cell.text.trim() == "") ? `(Spalte ${cell.col})` : cell.text));
   workshopColumnOptions.value = colOpts;
-  console.log(colOpts)
 
   workshopFile.value = worksheet;
 }
@@ -166,10 +165,8 @@ function isWContinueDisabled() {
   Object.values(WorkshopColumnType).forEach((val) => {
     if (!currentWorkshopColumnMappings.value.has(val) && val != WorkshopColumnType.id) {
       canContinue = false;
-      console.log("didnt have", val);
     }
   });
-  console.log("reeval canCont: ", canContinue);
   return !canContinue;
 }
 
