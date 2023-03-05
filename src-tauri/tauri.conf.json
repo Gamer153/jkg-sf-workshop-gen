@@ -8,7 +8,7 @@
   },
   "package": {
     "productName": "jkg_sf_workshop_gen",
-    "version": "0.0.0"
+    "version": "0.0.1"
   },
   "tauri": {
     "allowlist": {
@@ -35,8 +35,8 @@
     },
     "bundle": {
       "active": true,
-      "category": "DeveloperTool",
-      "copyright": "",
+      "category": "Utility",
+      "copyright": "© Antonio Albert, 2023",
       "deb": {
         "depends": []
       },
@@ -48,7 +48,7 @@
         "icons/icon.icns",
         "icons/icon.ico"
       ],
-      "identifier": "dev.gamer153.jkg_sf_workshop_gen",
+      "identifier": "dev.gamer153.jkg-sf-workshop-gen",
       "longDescription": "",
       "macOS": {
         "entitlements": null,
@@ -78,8 +78,8 @@
       {
         "fullscreen": false,
         "height": 600,
-        "resizable": true,
-        "title": "JKG Workshop-Listen-Generator, von A. Albert",
+        "resizable": false,
+        "title": "JKG Workshop-Listen-Generator",
         "width": 1000
       }
     ]

@@ -4,25 +4,85 @@ import * as fs from "@tauri-apps/api/fs";
 import * as dialog from "@tauri-apps/api/dialog";
 import * as path from "@tauri-apps/api/path";
 import * as shell from "@tauri-apps/api/shell";
-import Excel from "exceljs";
+import Excel, { ValueType } from "exceljs";
+import colCache from "exceljs/lib/utils/col-cache";
 import { ref } from "vue";
 import { DClass, DPupil, DWorkshopMap, SPupil, Workshop } from "./lib/data";
-import { readWorkshops } from "./lib/loader";
-import { ElButton, ElCard, ElContainer, ElAlert, ElMain, ElMessage, ElSteps, ElStep, ElHeader, ElLoading, ElDialog, ElFooter, ElIcon, ElLink,  } from "element-plus";
+import { readWorkshops, WorkshopColumnType } from "./lib/loader";
+import { ElButton, ElCard, ElContainer, ElAlert, ElMain, ElMessage, ElSteps, ElStep, ElHeader, ElLoading, ElDialog, ElFooter, ElIcon, ElLink, ElDropdown, ElSelect, ElOption } from "element-plus";
 
-const workshopData = ref<Map<number, Workshop> | undefined>(undefined);
-const classData = ref<DClass[] | undefined>(undefined);
+const workshopData = ref<Map<number, Workshop>>();
+const classData = ref<DClass[]>();
 const step = ref(0);
 
 const showAnewWarningDialog = ref(false);
 const showMailDialog = ref(false);
+
+const workshopFile = ref<Excel.Worksheet>();
+const workshopColumnOptions = ref<Map<number, string>>();
+const autoGenWId = ref(false);
+const currentWorkshopColumnMappings = ref(new Map<WorkshopColumnType, number>());
+
+const classFile = ref<Excel.Worksheet>();
 
 async function readWorkshopXLSX() {
   const path = await dialog.open({ title: "Workshopdaten-Excel-Datei auswählen", filters: [{ name: "Excel-Datei", extensions: ["xlsx"] }] });
   if (typeof path !== "string") return;
   const sheet = new Excel.Workbook();
   await sheet.xlsx.load(await fs.readBinaryFile(path));
-  const [ readWorkshopData, warnings, error ] = readWorkshops(sheet.worksheets[0]);
+  if (
+    sheet.worksheets.length > 1 &&
+    !await dialog.ask("Das ausgewählte Dokument enthält mehr als 1 Tabellenblatt! Es wird nur das erste gelesen. Soll trotzdem fortgefahren werden?", "Fortfahren?")
+  ) return;
+  const worksheet = sheet.worksheets[0];
+  if (
+    !await dialog.ask("Der Inhalt der ersten Zeile wird als Beschriftung für die Spalten verwendet. Enthält die erste Zeile die Spalten-Beschriftungen?", "Bestätigung")
+  ) return;
+  const maybeFirstId = worksheet.findCell("A2", "");
+  if (!maybeFirstId || maybeFirstId.text == "") {
+    await dialog.message("Zelle A2 hat keinen Inhalt. Dort müsste sich die erste Workshop-ID oder der erste Workshop-Name befinden. Abbruch.", { type: "error", title: "Fehler" });
+    return;
+  }
+  if (maybeFirstId.type != ValueType.Number && isNaN(parseInt(maybeFirstId.text))) {
+    if (!await dialog.ask("Die erste Spalte scheint keine Workshop-IDs zu enthalten. Wenn du fortfährst, werden die Workshops automatisch nach Reihennummer nummeriert. Fortfahren?"))
+      return;
+    else autoGenWId.value = true;
+  }
+  if (worksheet.getRow(1).actualCellCount < (autoGenWId.value ? 5 : 6)) {
+    await dialog.message(`Die erste Zeile (Beschriftungen) muss mindestens ${autoGenWId.value ? 5 : 6} Zellen mit Daten enthalten!`);
+    return;
+  }
+
+  const colOpts = new Map<number, string>();
+  worksheet.getRow(1).eachCell((cell) => colOpts.set(cell.col as unknown as number, (cell.text.trim() == "") ? `(Spalte ${cell.col})` : cell.text));
+  workshopColumnOptions.value = colOpts;
+  console.log(colOpts)
+
+  workshopFile.value = worksheet;
+}
+
+async function processWorkshopXLSX() {
+  const worksheet = workshopFile.value;
+  if (!worksheet) return;
+  const cwcMap = currentWorkshopColumnMappings.value;
+
+  if (autoGenWId) {
+    var lastRow = 1;
+    while (true) {
+      if (!worksheet.findRow(lastRow)) break;
+      lastRow++;
+    }
+    worksheet.getColumn(worksheet.lastColumn.number + 1).eachCell((cell, rowNum) => cell.value = (lastRow >= rowNum) ? rowNum : null);
+  }
+
+  const [readWorkshopData, warnings, error] = readWorkshops(worksheet, new Map(Object.entries({
+    [WorkshopColumnType.id]: (autoGenWId) ? worksheet.lastColumn.letter : "A",
+    [WorkshopColumnType.leaderName]: colCache.n2l(cwcMap.get(WorkshopColumnType.leaderName)!),
+    [WorkshopColumnType.name]: colCache.n2l(cwcMap.get(WorkshopColumnType.name)!),
+    [WorkshopColumnType.duration]: colCache.n2l(cwcMap.get(WorkshopColumnType.duration)!),
+    [WorkshopColumnType.maxMembers]: colCache.n2l(cwcMap.get(WorkshopColumnType.maxMembers)!),
+    [WorkshopColumnType.leaderClass]: colCache.n2l(cwcMap.get(WorkshopColumnType.leaderClass)!)
+  })) as Map<WorkshopColumnType, string>);
   if (error) {
     await dialog.message("Beim Einlesen ist ein Fehler aufgetreten:\n" + error, { title: "Fehler beim Einlesen", type: "error" });
     return;
@@ -64,7 +124,7 @@ function getWorkshopCapacity() {
 
 async function calculateWorkshopSpread() {
   const loadW = ElLoading.service({
-    text: "Berechnet..."
+    text: "Berechnet Workshopverteilung..."
   });
   await new Promise((d) => window.setTimeout(d, 2000));
   loadW.close();
@@ -78,12 +138,39 @@ function saveDoc(what: string) {
 
 function startAnew() {
   if (showAnewWarningDialog.value) {
-    workshopData.value = undefined;
-    classData.value = undefined;
-    step.value = 0;
+    window.location.reload();
     showAnewWarningDialog.value = false;
   }
   else showAnewWarningDialog.value = true;
+}
+
+
+function updateWColVal(columnType: WorkshopColumnType, newVal: number) {
+  if (newVal == -2) currentWorkshopColumnMappings.value.delete(columnType);
+  else currentWorkshopColumnMappings.value.set(columnType, newVal);
+}
+
+const unusedWColumns = ref<[number, string][]>();
+function updateUnusedWColumns(nowVisible = true) {
+  if (!nowVisible) return;
+
+  if (!workshopColumnOptions.value) return [];
+  const opts = [...workshopColumnOptions.value!.entries()].slice((autoGenWId.value) ? 0 : 1);
+  const newUnused = opts.filter((e) => ![...currentWorkshopColumnMappings.value!.values()].includes(e[0]));
+  if (newUnused.length > 0) unusedWColumns.value = newUnused;
+  else unusedWColumns.value = [[-2, "Auswahl entfernen"]];
+}
+
+function isWContinueDisabled() {
+  var canContinue = true;
+  Object.values(WorkshopColumnType).forEach((val) => {
+    if (!currentWorkshopColumnMappings.value.has(val) && val != WorkshopColumnType.id) {
+      canContinue = false;
+      console.log("didnt have", val);
+    }
+  });
+  console.log("reeval canCont: ", canContinue);
+  return !canContinue;
 }
 
 </script>
@@ -150,11 +237,26 @@ function startAnew() {
       <template #header>
         <span :style="(step > 0) ? 'text-decoration: line-through;' : ''">Schritt 1: Workshopdaten einlesen</span><span v-if="step > 0"> ✅</span>
       </template>
-      <div v-if="step == 0">
+      <div v-if="step == 0 && workshopFile === undefined">
         Zuerst musst du <b>die ausgefüllte Excel-Datei mit den Workshopdaten</b> einlesen.<br>
-        Damit die Daten ordentlich eingelesen werden können, müssen sie <b>genau so angeordnet</b> sein wie in der Vorlage!<br>
+        Bitte vergewissere dich, dass die Daten ähnlich angeordnet sind wie in der Vorlage. Du kannst auch die Daten direkt vom <b>Ergebnisdokument einer LernSax-Umfrage</b> mit den benötigten Daten einlesen.<br>
         <ElButton style="margin-top: 8px;" @click="saveWorkshopTemplate">Vorlage speichern</ElButton><br>
         <ElButton size="large" style="margin-top: 4px;" type="primary" @click="readWorkshopXLSX">Workshopdaten-Excel-Datei auswählen</ElButton>
+      </div>
+      <div v-else-if="step == 0">
+        Bitte wähle den richtigen Inhalt der Spalten für die Verarbeitung aus:
+        <table>
+          <tr v-for="columnType in Object.values(WorkshopColumnType)">
+            <td>Spalte mit {{ columnType }}:</td>
+            <td>
+              <ElSelect v-if="columnType == WorkshopColumnType.id" disabled :model-value="(autoGenWId) ? 'ID automatisch generiert' : workshopColumnOptions?.get(1)" />
+              <ElSelect v-else :model-value="currentWorkshopColumnMappings.get(columnType)" @update:model-value="newVal => updateWColVal(columnType, newVal)" @visible-change="updateUnusedWColumns">
+                <ElOption v-for="([column, label]) in unusedWColumns" :value="column" :key="column" :label="label" />
+              </ElSelect>
+            </td>
+          </tr>
+        </table>
+        <ElButton type="success" :disabled="isWContinueDisabled()" @click="processWorkshopXLSX">Fortfahren</ElButton>
       </div>
       <div style="font-size: smaller;" v-else>
         Infos zu den Workshopdaten:<br>

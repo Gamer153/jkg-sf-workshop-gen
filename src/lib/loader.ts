@@ -1,26 +1,50 @@
 import { SClass, SPupil, Status, Workshop } from "./data";
 import Excel from "exceljs";
 
-export function readWorkshops(sheet: Excel.Worksheet): [workshops: Map<number, Workshop>, warnings: string[], error: string | null] {
+export enum WorkshopColumnType {
+    id = "Workshop-ID", name = "Workshop-Name", leaderName = "Leiter-Name", leaderClass = "Leiter-Klasse", maxMembers = "Max. Teilnehmer", duration = "Dauer"
+}
+
+export function readWorkshops(sheet: Excel.Worksheet, rowMapping: Map<WorkshopColumnType, string>, autoGenIdIfMissing: boolean = true): [workshops: Map<number, Workshop>, warnings: string[], error: string | null] {
     const workshops = new Map<number, Workshop>();
-    const warnings = [];
+    const warnings: string[] = [];
+
+    const error = (error: string) => [workshops, warnings, error] as [Map<number, Workshop>, string[], string | null];
+
     for (let i = 2; i <= sheet.rowCount; i++) {
         const row = sheet.getRow(i);
-        const id = parseInt(row.getCell("A").text);
+
+        const id = rowMapping.has(WorkshopColumnType.id) ? parseInt(row.getCell(rowMapping.get(WorkshopColumnType.id)!.toUpperCase()).text) : (autoGenIdIfMissing ? i - 1 : NaN);
         if (isNaN(id)) continue;
-        const wName = row.getCell("B").text;
+
+        const nameMapping = rowMapping.get(WorkshopColumnType.name)?.toUpperCase();
+        if (!nameMapping) return error("Kein Mapping für Workshop-Name angegeben!");
+        const wName = row.getCell(nameMapping).text;
         if (wName.trim() == "") {
-            warnings.push(`Workshop mit ID ${id} (in Zeile ${i}) hat keinen Namen! Übersprungen.`)
+            warnings.push(`Workshop mit ID ${id} (in Zeile ${i}) hat keinen Namen! Übersprungen.`);
             continue;
         }
-        const wLeader = row.getCell("C").text;
-        if (wLeader.trim() == "") return [workshops, warnings, `Workshop \"${wName}\" (in Zeile ${i}) hat keine*n Leiter*in!`];
-        const wLClass = row.getCell("D").text;
-        if (wLClass.trim() == "") return [workshops, warnings, `Klasse des/der Leiter*in fehlt bei Workshop \"${wName}\" (in Zeile ${i})!`];
-        const wMaxMembers = parseInt(row.getCell("E").text);
-        if (isNaN(wMaxMembers) || wMaxMembers < 1) return [workshops, warnings, "Workshop \"${wName}\" (in Zeile ${i}) hat keine gültige maximale Teilnehmerzahl!"];
-        const wDuration = parseInt(row.getCell("F").text);
-        if (isNaN(wDuration) || (wDuration != 90 && wDuration != 120)) return [workshops, warnings, `Workshop \"${wName}\" (in Zeile ${i}) muss entweder 90 oder 120 min Dauer haben!`];
+
+        const leaderNMapping = rowMapping.get(WorkshopColumnType.leaderName)?.toUpperCase();
+        if (!leaderNMapping) return error("Kein Mapping für Leiter-Name angegeben!");
+        const wLeader = row.getCell(leaderNMapping).text;
+        if (wLeader.trim() == "") return error(`Workshop \"${wName}\" (in Zeile ${i}) hat keine*n Leiter*in!`);
+
+        const leaderCMapping = rowMapping.get(WorkshopColumnType.leaderClass)?.toUpperCase();
+        if (!leaderCMapping) return error("Kein Mapping für Leiter-Klasse angegeben!");
+        const wLClass = row.getCell(leaderCMapping).text;
+        if (wLClass.trim() == "") return error(`Klasse des/der Leiter*in fehlt bei Workshop \"${wName}\" (in Zeile ${i})!`);
+
+        const maxMemMapping = rowMapping.get(WorkshopColumnType.maxMembers)?.toUpperCase();
+        if (!maxMemMapping) return error("Kein Mapping für maximale Teilnehmer angegeben!");
+        const wMaxMembers = parseInt(row.getCell(maxMemMapping).text);
+        if (isNaN(wMaxMembers) || wMaxMembers < 1) return error(`Workshop \"${wName}\" (in Zeile ${i}) hat keine gültige maximale Teilnehmerzahl!`);
+
+        const durationMapping = rowMapping.get(WorkshopColumnType.duration)?.toUpperCase();
+        if (!durationMapping) return error("Kein Mapping für Dauer angegeben!");
+        const wDuration = parseInt(row.getCell(durationMapping).text);
+        if (isNaN(wDuration) || (wDuration != 90 && wDuration != 120)) return error(`Workshop \"${wName}\" (in Zeile ${i}) muss entweder 90 oder 120 min Dauer haben!`);
+
         workshops.set(id, {
             id,
             name: wName,
