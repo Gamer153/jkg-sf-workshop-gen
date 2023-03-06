@@ -1147,8 +1147,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "jkg_sf_workshop_gen"
-version = "0.0.0"
+name = "jkg-sf-workshop-gen"
+version = "0.0.1"
 dependencies = [
  "serde",
  "serde_json",

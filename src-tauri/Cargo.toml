@@ -1,8 +1,8 @@
 [package]
-name = "jkg_sf_workshop_gen"
-version = "0.0.0"
-description = "A Tauri App"
-authors = ["you"]
+name = "jkg-sf-workshop-gen"
+version = "0.0.1"
+description = "JKG SF Workshop Gen"
+authors = ["Gamer153"]
 license = ""
 repository = ""
 edition = "2021"

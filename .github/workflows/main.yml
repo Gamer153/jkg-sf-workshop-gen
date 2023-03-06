@@ -1,4 +1,4 @@
-name: Build Tauri for Windows
+name: Build jkg-sf-workshop-gen for Windows
 
 on:
   push:
